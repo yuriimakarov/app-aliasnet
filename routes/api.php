@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Api\v1\SpellCheckController;
+use App\Http\Controllers\Api\v1\TokenController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -13,7 +15,10 @@ use Illuminate\Support\Facades\Route;
 | is assigned the "api" middleware group. Enjoy building your API!
 |
 */
+Route::post('v1/getToken', [TokenController::class, 'getToken']);
 
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
+Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
+    Route::post('/spellCheck', [SpellCheckController::class, 'spellCheck']);
+    Route::post('/getDifferences', [SpellCheckController::class, 'getDifferences']);
 });
+
