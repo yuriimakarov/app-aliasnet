@@ -18,23 +18,15 @@ class SpellCheckController extends Controller
     {
         $xmlObject = simplexml_load_string($request->getContent());
         $json = json_encode($xmlObject);
-        $phpArray = json_decode($json, true);
+        $errorMessagesArr = json_decode($json, true);
 
-        $response = $this->callSpellCheckApi($phpArray['error_message']['message']);
-        $mistakes = json_decode($response->body(), true);
-        // TODO Create method to parse mistakes and build new sentence
+        if (isset($errorMessagesArr['error_message'][0])) { // Check if $errorMessagesArr has multiple error_message
+            $response = $this->getMessagesSpellCheck($errorMessagesArr['error_message']);
+        } else {
+            $response = $this->getMessagesSpellCheck($errorMessagesArr);
+        }
 
-        return response()->json([
-            'error_messages' =>  [
-                'title' => $phpArray['error_message']['title'],
-                'module' => $phpArray['error_message']['module'],
-                'language' => [
-                    'code' => 'en-GB'
-                ],
-                'message' => $phpArray['error_message']['message'], // Here will be result of fixed message
-                'original_message' => $phpArray['error_message']['message']
-            ]
-        ]);
+        return response()->json($response);
     }
 
     /**
@@ -43,41 +35,94 @@ class SpellCheckController extends Controller
      */
     public function getDifferences(Request $request): JsonResponse
     {
-        $phpArray = json_decode($request->getContent(), true);
+        $messagesArray = json_decode($request->getContent(), true);
+        $response = [];
 
-        $originalMessage = $phpArray['error_messages'][0]['original_message'];
-        $message = $phpArray['error_messages'][0]['message'];
+        foreach ($messagesArray['error_messages'] as $k => $messageItem) {
+            $response['comparison'][$k] = [
+                'message' => $messageItem['error_message']['message'],
+                'original_message' => $messageItem['error_message']['original_message'],
+                'distance' => levenshtein(
+                    $messageItem['error_message']['original_message'],
+                    $messageItem['error_message']['message']
+                ),
+                'similarity' => similar_text(
+                    $messageItem['error_message']['original_message'],
+                    $messageItem['error_message']['message']
+                )
+            ];
+        }
 
-        $distance = levenshtein($originalMessage, $message);
-        $similarity = similar_text($originalMessage, $message);
-
-        return response()->json([
-            'comparisaon' => [
-                [
-                    'message' => $message,
-                    'original_message' => $originalMessage,
-                    'distance' => $distance,
-                    'similarity' => $similarity
-                ]
-            ]
-        ]);
+        return response()->json($response);
     }
 
     /**
-     * @param string $data
-     * @return Response
+     * @param array $data
+     * @return array
      */
-    private function callSpellCheckApi(string $data): Response
+    private function getMessagesSpellCheck(array $data): array
     {
-        $params = [
+        $response = [];
+
+        foreach ($data as $errorMessage) {
+            $correctedData = $this->callSpellCheckApi($errorMessage['message']);
+
+            if ($correctedData !== false && !empty($correctedData['matches'])) {
+                $message = $this->correctSpellingMistakes($correctedData['matches'], $errorMessage['message']);
+            } else {
+                $message = $errorMessage['message'];
+            }
+
+            $response['error_messages'][]['error_message'] = [
+                'title' => $errorMessage['title'],
+                'module' => $errorMessage['module'],
+                'language' => [
+                    'code' => 'en-GB'
+                ],
+                'message' => $message, // Here will be result of corrected message
+                'original_message' => $errorMessage['message']
+            ];
+        }
+
+        return $response;
+    }
+    /**
+     * @param string $data
+     * @return array|bool
+     */
+    private function callSpellCheckApi(string $data): array|bool
+    {
+        $response = Http::withHeaders([
+            'Content-Type' => 'application/x-www-form-urlencoded',
+            'Accept' => 'application/json'
+        ])
+        ->asForm()
+        ->post('https://api.languagetoolplus.com/v2/check', [
             'text' => $data,
             'language' => 'en-GB'
-        ];
-        return Http::withHeaders([
-                'Content-Type' => 'application/x-www-form-urlencoded',
-                'Accept' => 'application/json'
-            ])
-            ->asForm()
-            ->post('https://api.languagetoolplus.com/v2/check', $params);
+        ]);
+
+        if ($response->status() == 200) {
+            return json_decode($response->body(), true);
+        }
+        return false;
+    }
+
+    /**
+     * @param array $data
+     * @param string $originalMessage
+     * @return string
+     */
+    private function correctSpellingMistakes(array $data, string $originalMessage): string
+    {
+        $correctWords = [];
+        $incorrectWords = [];
+
+        foreach ($data as $message) {
+            $correctWords[] = $message['replacements'][0]['value'];
+            $incorrectWords[] = substr($originalMessage, $message['offset'], $message['length']);
+        }
+
+        return str_replace($incorrectWords, $correctWords, $originalMessage);
     }
 }
