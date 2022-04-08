@@ -41,7 +41,7 @@ class SpellCheckController extends Controller
      * @param Request $request
      * @return JsonResponse
      */
-    public function getDifferences (Request $request): JsonResponse
+    public function getDifferences(Request $request): JsonResponse
     {
         $phpArray = json_decode($request->getContent(), true);
 
