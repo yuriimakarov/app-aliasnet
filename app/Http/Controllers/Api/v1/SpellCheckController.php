@@ -92,15 +92,12 @@ class SpellCheckController extends Controller
      */
     private function callSpellCheckApi(string $data): array|bool
     {
-        $response = Http::withHeaders([
-            'Content-Type' => 'application/x-www-form-urlencoded',
-            'Accept' => 'application/json'
-        ])
-        ->asForm()
-        ->post('https://api.languagetoolplus.com/v2/check', [
-            'text' => $data,
-            'language' => 'en-GB'
-        ]);
+        $response = Http::asForm()
+            ->retry(5)
+            ->post('https://api.languagetoolplus.com/v2/check', [
+                'text' => $data,
+                'language' => 'en-GB'
+            ]);
 
         if ($response->status() == 200) {
             return json_decode($response->body(), true);

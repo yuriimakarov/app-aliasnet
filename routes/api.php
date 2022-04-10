@@ -17,8 +17,7 @@ use Illuminate\Support\Facades\Route;
 */
 Route::post('v1/getToken', [TokenController::class, 'getToken']);
 
-Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
-    Route::post('/spellCheck', [SpellCheckController::class, 'spellCheck']);
-    Route::post('/getDifferences', [SpellCheckController::class, 'getDifferences']);
+Route::middleware(['auth:sanctum'])->controller(SpellCheckController::class)->prefix('v1')->group(function () {
+    Route::post('/spellCheck', 'spellCheck');
+    Route::post('/getDifferences','getDifferences');
 });
-
