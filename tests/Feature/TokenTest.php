@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\User;
-use http\Env\Response;
 use Tests\TestCase;
 
 class TokenTest extends TestCase
@@ -13,12 +12,12 @@ class TokenTest extends TestCase
      *
      * @return void
      */
-//    public function testGetToken()
-//    {
-//        $response = $this->post('api/v1/getToken');
-//
-//        $response->assertStatus(200);
-//    }
+    public function testGetTokenRoute()
+    {
+        $response = $this->post('api/v1/getToken');
+
+        $response->assertStatus(200);
+    }
 
     public function testGenerateBearerToken()
     {
