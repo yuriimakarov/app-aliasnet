@@ -12,14 +12,17 @@ class TokenTest extends TestCase
      *
      * @return void
      */
-    public function testGetTokenRoute()
+    public function testGetTokenRoute(): void
     {
         $response = $this->post('api/v1/getToken');
 
         $response->assertStatus(200);
     }
 
-    public function testGenerateBearerToken()
+    /**
+     * @return void
+     */
+    public function testGenerateBearerToken(): string
     {
         $user = User::factory()->create();
 
@@ -32,11 +35,14 @@ class TokenTest extends TestCase
                 'PHP_AUTH_USER' => $user->name,
                 'PHP_AUTH_PW' => $user->password
             ]);
+        $responseArray = json_decode($response->getContent(), true);
 
         $this->assertSame(200, $response->status());
 
-        $this->assertIsString(
-            json_decode($response->getContent(), true)['token']
-        );
+        $this->assertArrayHasKey('token', $responseArray);
+
+        $this->assertIsString($responseArray['token']);
+
+        return $responseArray['token'];
     }
 }
